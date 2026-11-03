@@ -40,6 +40,15 @@ coverage/
 dist/
 .vite/
 
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.db
+*.sqlite3
+
 # Local environment
 .env
 .env.*

@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/yuanye820/claimit/actions/workflows/ci.yml/badge.svg)](https://github.com/yuanye820/claimit/actions/workflows/ci.yml)
 
-A shared list with conflict-safe claims. Android app and responsive web app, backed by Firebase Authentication and Cloud Firestore.
+A shared list with conflict-safe claims. Android app and responsive web app, backed by a self-hosted FastAPI service and PostgreSQL.
 
-**Status:** Assignment 1 walking skeleton. The claim domain and its tests are implemented on `main` (PR #4); the Android and web clients are scaffolded in Iteration 1.
+**Status:** Assignment 1 walking skeleton. The claim rule is implemented and tested in the framework-free domain module (PR #4). The FastAPI + PostgreSQL service is scaffolded under `server/`; the Android and web clients follow in Iteration 1.
 
 ## Problem
 
@@ -12,26 +12,47 @@ Groups coordinate shared lists in chat. A claim is only a message: it scrolls aw
 
 ## Current increment
 
-- Create an item with an integer total quantity.
+- Create a list and an item with an integer total quantity.
 - Claim or release a quantity.
-- Two concurrent claims for the last unit: exactly one succeeds; the other receives a conflict.
+- Two concurrent claims for the last unit: exactly one succeeds; the other receives `409`.
 - Invariant: `claimed + remaining = total`, and `remaining >= 0`.
 
 ## Run the tests
 
-Requires Node.js 20 or newer.
+### Domain rule (Node.js 20+)
 
 ```bash
 npm test
 ```
 
-There are no runtime dependencies for the domain prototype.
+### API (Python 3.12+)
+
+```bash
+cd server
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+source .venv/bin/activate
+pip install -r requirements.txt
+pytest tests
+```
+
+The API tests use SQLite locally and PostgreSQL in CI.
+
+## Run the API
+
+```bash
+docker compose up --build
+```
+
+Open http://127.0.0.1:8000/docs for the generated OpenAPI UI.
 
 ## Repository structure
 
 ```
-src/claim-engine.js        Shared domain contract and claim rules
-test/claim-engine.test.js  Unit and concurrency tests
+src/claim-engine.js        Framework-free claim rule and concurrency lock
+test/claim-engine.test.js  Domain unit and concurrency tests
+server/                    FastAPI service, PostgreSQL models and API tests
+docker-compose.yml         API + PostgreSQL for local development
 docs/traceability.md       Requirement -> issue -> PR -> test
 docs/evidence.md           Evidence index for the report
 docs/working-agreement.md  3-person team agreement
@@ -43,9 +64,9 @@ report/                    Assignment 1 report (PDF and DOCX)
 ## Clients
 
 - `clients/android/` — Android APK (Kotlin, min SDK 26), planned for Iteration 1.
-- `clients/web/` — responsive web app (Firebase JS SDK), planned for Iteration 1.
+- `clients/web/` — responsive web app, planned for Iteration 1.
 
-Both clients use the same item/claim contract and the same Cloud Firestore data model.
+Both clients use the same OpenAPI contract. The API is served by FastAPI behind Nginx with TLS in deployment.
 
 ## Evidence
 
@@ -58,15 +79,18 @@ Both clients use the same item/claim contract and the same Cloud Firestore data 
 
 - [Assignment 1 report (PDF)](report/ClaimIt_Assignment1_Report.pdf)
 - [Assignment 1 report (DOCX)](report/ClaimIt_Assignment1_Report.docx)
+- [Project proposal (DOCX)](report/ClaimIt_Proposal.docx)
 
 ## Team
 
 - Liye Zheng (`yuanye820`) — Product Owner; Android client
-- Xirui Li (`lr20040416-ship-it`) — Tech Lead; Firestore model, transaction and security rules
+- Xirui Li (`lr20040416-ship-it`) — Tech Lead; PostgreSQL schema and claim endpoint
 - Junyu Chen (`xixiyu268-cmd`) — QA/DevOps; web client, CI and evidence
 
 ## Design notes
 
-- Quantities are integers; all money-like floating-point problems are avoided.
-- A claim is a read-validate-decrement-write operation. In production it runs in a Cloud Firestore transaction; the prototype serialises per-item operations with a lock so the same rule can be tested locally.
-- The domain module has no Firebase import, so the rule can be tested in CI without credentials or emulator time.
+- Quantities are integers; the invariant needs no floating-point tolerance.
+- A claim is one SQL conditional update: `UPDATE items SET remaining = remaining - :qty WHERE id = :id AND remaining >= :qty`. If no row is updated, the API returns `409 Conflict`.
+- The service is self-hosted on an Ubuntu server: FastAPI behind Nginx with TLS, PostgreSQL for storage, and `pg_dump` for backups.
+- `X-User-Id` is a prototype header so the claim rule can be tested without a login flow. JWT authentication is planned for Iteration 1.
+- The domain rule has no framework import, so it can be tested without a database; the API tests run against PostgreSQL in CI.

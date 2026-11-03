@@ -19,3 +19,39 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: claimit_test
+          POSTGRES_USER: claimit
+          POSTGRES_PASSWORD: claimit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run API tests against PostgreSQL
+        run: pytest tests
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg2://claimit:claimit@localhost:5432/claimit_test
