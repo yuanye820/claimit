@@ -36,6 +36,7 @@ docs/traceability.md       Requirement -> issue -> PR -> test
 docs/evidence.md           Evidence index for the report
 docs/working-agreement.md  3-person team agreement
 docs/system-overview.md    System diagram and design decisions
+report/                    Assignment 1 report (PDF and DOCX)
 .github/                   Issue/PR templates and CI
 ```
 
@@ -53,11 +54,16 @@ Both clients use the same item/claim contract and the same Cloud Firestore data 
 - Evidence index: [docs/evidence.md](docs/evidence.md)
 - Working agreement: [docs/working-agreement.md](docs/working-agreement.md)
 
+## Report
+
+- [Assignment 1 report (PDF)](report/ClaimIt_Assignment1_Report.pdf)
+- [Assignment 1 report (DOCX)](report/ClaimIt_Assignment1_Report.docx)
+
 ## Team
 
-- [Member 1] — Product Owner; Android client
-- [Member 2] — Tech Lead; Firestore model, transaction and security rules
-- [Member 3] — QA/DevOps; web client, CI and evidence
+- Liye Zheng (`yuanye820`) — Product Owner; Android client
+- Xirui Li (`lr20040416-ship-it`) — Tech Lead; Firestore model, transaction and security rules
+- Junyu Chen (`xixiyu268-cmd`) — QA/DevOps; web client, CI and evidence
 
 ## Design notes
 
