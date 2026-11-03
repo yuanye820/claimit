@@ -1,8 +1,10 @@
 # ClaimIt
 
+[![CI](https://github.com/yuanye820/claimit/actions/workflows/ci.yml/badge.svg)](https://github.com/yuanye820/claimit/actions/workflows/ci.yml)
+
 A shared list with conflict-safe claims. Android app and responsive web app, backed by Firebase Authentication and Cloud Firestore.
 
-**Status:** Assignment 1 walking skeleton. The claim domain contract and its tests are in place; the Android and web clients are scaffolded in Iteration 1.
+**Status:** Assignment 1 walking skeleton. The claim domain and its tests are implemented on `main` (PR #4); the Android and web clients are scaffolded in Iteration 1.
 
 ## Problem
 
