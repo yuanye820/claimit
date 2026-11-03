@@ -1,0 +1,13 @@
+{
+  "name": "claimit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Android + web shared list with conflict-safe claims",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
