@@ -80,6 +80,7 @@ Both clients use the same OpenAPI contract. The API is served by FastAPI behind 
 - [Assignment 1 report (PDF)](report/ClaimIt_Assignment1_Report.pdf)
 - [Assignment 1 report (DOCX)](report/ClaimIt_Assignment1_Report.docx)
 - [Project proposal (DOCX)](report/ClaimIt_Proposal.docx)
+- Submission tag: `assignment1-submission`
 
 ## Team
 
