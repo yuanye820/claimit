@@ -49,6 +49,17 @@ def create_item(list_id: int, payload: ItemCreate, db: Session = Depends(get_db)
     return item
 
 
+@app.get("/lists/{list_id}/items", response_model=list[ItemOut])
+def list_items(list_id: int, db: Session = Depends(get_db)):
+    if db.get(ItemList, list_id) is None:
+        raise HTTPException(status_code=404, detail="list not found")
+    return (
+        db.execute(select(Item).where(Item.list_id == list_id).order_by(Item.id))
+        .scalars()
+        .all()
+    )
+
+
 @app.get("/items/{item_id}", response_model=ItemOut)
 def get_item(item_id: int, db: Session = Depends(get_db)):
     item = db.get(Item, item_id)
