@@ -9,6 +9,7 @@
 | Two claims for the last unit: one conflict | [#3](https://github.com/yuanye820/claimit/issues/3) | [#4](https://github.com/yuanye820/claimit/pull/4) | `two claims for the last unit: one succeeds, one conflicts`; `test_claim_last_unit_twice_one_conflicts` |
 | Invariant `claimed + remaining = total` | [#3](https://github.com/yuanye820/claimit/issues/3) | [#4](https://github.com/yuanye820/claimit/pull/4) | `random claim/release sequences preserve the invariant` |
 | Only list members can claim | planned #5 | — | JWT + API test (Iteration 2) |
+| Invalid or unauthenticated requests are rejected | [#6](https://github.com/yuanye820/claimit/issues/6) | [#7](https://github.com/yuanye820/claimit/pull/7) | `test_claim_requires_user_header`, `test_claim_rejects_zero_quantity`, `test_claim_unknown_item_returns_404`, `test_release_without_claim_returns_409` |
 | Claim deadlines and per-person limits | planned #7 | — | Planned for Iteration 2 |
 
 Update this table whenever an issue or PR is opened or merged.
