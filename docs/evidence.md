@@ -15,9 +15,12 @@
 | Review baseline | Iteration 1 PRs #10, #12, #14 with 0 approvals | [PR #10](https://github.com/yuanye820/claimit/pull/10), [PR #12](https://github.com/yuanye820/claimit/pull/12), [PR #14](https://github.com/yuanye820/claimit/pull/14) |
 | Audit history requirement | Issue #15 | [issue #15](https://github.com/yuanye820/claimit/issues/15) |
 | Audit history change | Pull request #16 | [PR #16](https://github.com/yuanye820/claimit/pull/16) |
+| Audit history review | Xirui approved PR #16 | [review](https://github.com/yuanye820/claimit/pull/16#pullrequestreview-6017512051) |
 | Audit history UI | Screenshot of `+1`/`-1` events | [screenshot](evidence/iteration-2-claim-history.png) |
 | Security requirement | Issue #17 | [issue #17](https://github.com/yuanye820/claimit/issues/17) |
 | Security change | Pull request #18 | [PR #18](https://github.com/yuanye820/claimit/pull/18) |
+| Merge-path defect | Security commit merged into a feature branch, not `main` | [issue #21](https://github.com/yuanye820/claimit/issues/21) |
+| Merge-path correction | Security commit replayed on `main` | [PR #22](https://github.com/yuanye820/claimit/pull/22) |
 | Security scenario | Hypotheses, results and residual risks | [security-evaluation.md](security-evaluation.md) |
 | Security regression tests | 12 tests | [test_security.py](../server/tests/test_security.py) |
 | CI for audit history | `test` and `api` green | [run 45119352006](https://github.com/yuanye820/claimit/actions/runs/45119352006) |
