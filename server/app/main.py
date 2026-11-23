@@ -72,7 +72,11 @@ def me(user: User = Depends(current_user)):
 
 
 @app.post("/lists", response_model=ListOut, status_code=201)
-def create_list(payload: ListCreate, db: Session = Depends(get_db)):
+def create_list(
+    payload: ListCreate,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
     item_list = ItemList(name=payload.name, code=secrets.token_urlsafe(4).upper())
     db.add(item_list)
     db.commit()
@@ -81,7 +85,12 @@ def create_list(payload: ListCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/lists/{list_id}/items", response_model=ItemOut, status_code=201)
-def create_item(list_id: int, payload: ItemCreate, db: Session = Depends(get_db)):
+def create_item(
+    list_id: int,
+    payload: ItemCreate,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
     if db.get(ItemList, list_id) is None:
         raise HTTPException(status_code=404, detail="list not found")
     item = Item(
