@@ -15,10 +15,12 @@
 
 | PR | Author | Change | Changed lines | Files | CI | Review |
 |---|---|---|---:|---:|---|---|
-| [#16](https://github.com/yuanye820/claimit/pull/16) | `yuanye820` | `claim_events` table, event writes in claim/release, `GET /items/{id}/claims`, web History panel, API test | 147 | 7 | `test`, `api` green | pending |
-| [#18](https://github.com/yuanye820/claimit/pull/18) | `yuanye820` | Authentication on list/item creation, 12 security tests, `db_session` fixture | 295 | 6 | `test`, `api` green | pending |
+| [#16](https://github.com/yuanye820/claimit/pull/16) | `yuanye820` | `claim_events` table, event writes in claim/release, `GET /items/{id}/claims`, web History panel, API test | 147 | 7 | `test`, `api` green | 1 approval (Xirui) |
+| [#18](https://github.com/yuanye820/claimit/pull/18) | `yuanye820` | Authentication on list/item creation, 12 security tests, `db_session` fixture | 295 | 6 | `test`, `api` green | 0 approvals — merged into its base branch, not `main` |
+| [#20](https://github.com/yuanye820/claimit/pull/20) | `yuanye820` | Iteration records, security evaluation, review checklist, evidence index | — | 7 | `test`, `api` green | 1 approval (Xirui) |
+| [#22](https://github.com/yuanye820/claimit/pull/22) | `yuanye820` | Replays the security commit on `main` after the merge-path error | 295 | 6 | `test`, `api` green | 1 approval required before merge |
 
-PR #18 is stacked on #16 because both touch the API test suite. It is reviewed as a separate change and retargeted to `main` after #16 merges.
+PR #18 was stacked on #16 because both touch the API test suite. It was merged into `feat/15-claim-history`, whose branch was **not protected**, instead of into `main`. That merge bypassed review and left the security change outside `main`. PR #22 replays the same commit on a branch based on `main` and is the reviewed path for the security change.
 
 ## Audit history behaviour
 
@@ -48,13 +50,13 @@ A review checklist was added at [review-checklist.md](../review-checklist.md). P
 
 | Measure | Baseline | Iteration 2 |
 |---|---|---|
-| PRs with at least one approval | 0/3 (0%) | to be recorded |
+| PRs with at least one approval | 0/3 (0%) | 2/3 (67%) |
 | Mean changed lines per PR | 695 | 221 (147 and 295) |
 | PRs at or below 300 changed lines | 0/3 | 2/2 |
 | CI pass rate at submission | 3/3 | 2/2 |
-| Time to first review | not measured | to be recorded |
+| Time to first review (PR #16) | not measured | about 65 minutes |
 
-The size target was met, which makes a substantive review feasible. Whether review coverage reaches 100% is the decisive check: the intervention is only successful if the protected branch actually blocks an unapproved merge.
+The size target was met, which makes a substantive review feasible. Review coverage did **not** reach 100%: #16 and #20 were approved, but #18 merged into an unprotected base branch and received no review. That is a process failure, not a success story. It exposed a gap in the intervention: branch protection was applied to `main` only, so a stacked PR could merge into its base and bypass the rule. PR #22 is the correction; the next iteration should either protect the base of every stacked PR or require all PRs to target `main`.
 
 ## Quality evaluation: security
 
@@ -62,9 +64,9 @@ The full scenario, inputs, expected/actual results and residual risks are in [se
 
 | Finding | Severity | Status |
 |---|---|---|
-| `POST /lists` and `POST /lists/{id}/items` accepted anonymous requests | High | Fixed in PR #18 |
-| Token rejection paths had no regression tests | Medium | Fixed in PR #18 |
-| Password storage had no test proving plaintext absence or unique salts | Medium | Fixed in PR #18 |
+| `POST /lists` and `POST /lists/{id}/items` accepted anonymous requests | High | Fixed; replayed on `main` by PR #22 |
+| Token rejection paths had no regression tests | Medium | Fixed; replayed on `main` by PR #22 |
+| Password storage had no test proving plaintext absence or unique salts | Medium | Fixed; replayed on `main` by PR #22 |
 | Read endpoints have no per-list membership check (IDOR) | Medium | Documented as residual risk |
 | No rate limiting on login/registration | Low | Documented as residual risk |
 | Development JWT secret has a usable default | Medium | Deployment requirement documented |
@@ -74,15 +76,17 @@ The suite grew from 15 to **27 passing tests**; the 12 security tests run in the
 ## What did not go to plan
 
 1. **The security review found a real defect.** The iteration started as “add tests for authentication” and became a fix when anonymous list creation was confirmed. This is a useful outcome, but it also shows that the Iteration 1 definition of done was not applied to every write endpoint.
-2. **Stacked PRs add coordination cost.** #18 cannot merge until #16 does. The dependency is explicit in the PR body, but it complicates review order and branch cleanup.
-3. **Android remains outside CI.** The new API contract is exercised by the web client and tests, but no automated Android build runs on pull requests.
-4. **Review latency is the remaining process risk.** Branch protection can block a merge, but it cannot make a reviewer respond. If reviews arrive late, the team needs a rotation or a response-time target in the next iteration.
+2. **A stacked PR bypassed the protection rule.** PR #18 was merged into `feat/15-claim-history`, not `main`. The protected branch was not the base branch, so the merge needed no approval and the security change did not reach `main`. The team detected this during the submission audit; PR #22 replays the commit on a branch based on `main`. The lesson is that protecting `main` is necessary but not sufficient when PRs can target another long-lived branch.
+3. **Stacked PRs add coordination cost.** #18 could not merge until #16 did, but its base also had to be retargeted at the right moment. The dependency was documented in the PR body but not enforced by tooling.
+4. **Android remains outside CI.** The new API contract is exercised by the web client and tests, but no automated Android build runs on pull requests.
+5. **Review latency is the remaining process risk.** Branch protection can block a merge, but it cannot make a reviewer respond. If reviews arrive late, the team needs a rotation or a response-time target in the next iteration.
 
 ## Retrospective actions
 
 | Action | Owner | Measure |
 |---|---|---|
-| Review #16 then #18; post substantive comments | Xirui, Junyu | 100% of Iteration 2 PRs approved before merge |
+| Merge #22 through a reviewed PR and verify `main` contains the security tests | Liye | `server/tests/test_security.py` on `main`; 27 tests pass |
+| Require every PR to target `main`, or protect the base of a stacked PR | All | No merge into an unprotected long-lived branch |
 | Keep the 300-line target for the next increment | All | PR size at submission |
 | Add an Android build job to CI | Junyu | APK assembles on every PR |
 | Add membership checks before sharing lists beyond the demo group | Xirui | 403 for non-members on list reads |
@@ -90,8 +94,9 @@ The suite grew from 15 to **27 passing tests**; the 12 security tests run in the
 
 ## Evidence
 
-- Issues: [#15](https://github.com/yuanye820/claimit/issues/15), [#17](https://github.com/yuanye820/claimit/issues/17)
-- Pull requests: [#16](https://github.com/yuanye820/claimit/pull/16), [#18](https://github.com/yuanye820/claimit/pull/18)
+- Issues: [#15](https://github.com/yuanye820/claimit/issues/15), [#17](https://github.com/yuanye820/claimit/issues/17), [#21](https://github.com/yuanye820/claimit/issues/21)
+- Pull requests: [#16](https://github.com/yuanye820/claimit/pull/16), [#18](https://github.com/yuanye820/claimit/pull/18), [#20](https://github.com/yuanye820/claimit/pull/20), [#22](https://github.com/yuanye820/claimit/pull/22)
+- Reviews: [PR #16 approval](https://github.com/yuanye820/claimit/pull/16#pullrequestreview-6017512051), [PR #20 approval](https://github.com/yuanye820/claimit/pull/20#pullrequestreview-6017522928)
 - Screenshot: [iteration-2-claim-history.png](../evidence/iteration-2-claim-history.png)
 - Security scenario: [security-evaluation.md](../security-evaluation.md)
 - CI: [Actions](https://github.com/yuanye820/claimit/actions)

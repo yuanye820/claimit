@@ -21,6 +21,7 @@
 | Test runner | pytest |
 | API framework | FastAPI + Starlette `TestClient` |
 | Commit under test | `76ff55e` (PR #18), compared with `cfa35c6` (pre-fix `main`) |
+| Merge onto `main` | `51690a6` (PR #22), after the merge-path correction |
 
 ## Hypotheses and results
 

@@ -1,21 +1,22 @@
 from fastapi.testclient import TestClient
 
 
-def make_item(client: TestClient) -> int:
-    response = client.post("/lists", json={"name": "Trip"})
+def make_item(client: TestClient, headers: dict[str, str]) -> int:
+    response = client.post("/lists", headers=headers, json={"name": "Trip"})
     assert response.status_code == 201
     list_id = response.json()["id"]
 
     response = client.post(
         f"/lists/{list_id}/items",
+        headers=headers,
         json={"name": "Tent", "total": 1},
     )
     assert response.status_code == 201
     return response.json()["id"]
 
 
-def test_claim_requires_bearer_token(client: TestClient):
-    item_id = make_item(client)
+def test_claim_requires_bearer_token(client: TestClient, auth_headers):
+    item_id = make_item(client, auth_headers())
 
     response = client.post(
         f"/items/{item_id}/claims",
@@ -26,11 +27,12 @@ def test_claim_requires_bearer_token(client: TestClient):
 
 
 def test_claim_rejects_zero_quantity(client: TestClient, auth_headers):
-    item_id = make_item(client)
+    headers = auth_headers()
+    item_id = make_item(client, headers)
 
     response = client.post(
         f"/items/{item_id}/claims",
-        headers=auth_headers(),
+        headers=headers,
         json={"quantity": 0},
     )
 
@@ -48,11 +50,12 @@ def test_claim_unknown_item_returns_404(client: TestClient, auth_headers):
 
 
 def test_release_without_claim_returns_409(client: TestClient, auth_headers):
-    item_id = make_item(client)
+    headers = auth_headers()
+    item_id = make_item(client, headers)
 
     response = client.post(
         f"/items/{item_id}/releases",
-        headers=auth_headers(),
+        headers=headers,
         json={"quantity": 1},
     )
 

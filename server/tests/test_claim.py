@@ -1,13 +1,18 @@
 from fastapi.testclient import TestClient
 
 
-def make_item(client: TestClient, total: int = 1) -> int:
-    response = client.post("/lists", json={"name": "Trip"})
+def make_item(
+    client: TestClient,
+    headers: dict[str, str],
+    total: int = 1,
+) -> int:
+    response = client.post("/lists", headers=headers, json={"name": "Trip"})
     assert response.status_code == 201
     list_id = response.json()["id"]
 
     response = client.post(
         f"/lists/{list_id}/items",
+        headers=headers,
         json={"name": "Tent", "total": total},
     )
     assert response.status_code == 201
@@ -15,16 +20,18 @@ def make_item(client: TestClient, total: int = 1) -> int:
 
 
 def test_claim_last_unit_twice_one_conflicts(client: TestClient, auth_headers):
-    item_id = make_item(client, total=1)
+    alice = auth_headers("alice@example.com", display_name="Alice")
+    bob = auth_headers("bob@example.com", display_name="Bob")
+    item_id = make_item(client, alice, total=1)
 
     first = client.post(
         f"/items/{item_id}/claims",
-        headers=auth_headers("alice@example.com", display_name="Alice"),
+        headers=alice,
         json={"quantity": 1},
     )
     second = client.post(
         f"/items/{item_id}/claims",
-        headers=auth_headers("bob@example.com", display_name="Bob"),
+        headers=bob,
         json={"quantity": 1},
     )
 
@@ -34,11 +41,12 @@ def test_claim_last_unit_twice_one_conflicts(client: TestClient, auth_headers):
 
 
 def test_claim_more_than_remaining_returns_409(client: TestClient, auth_headers):
-    item_id = make_item(client, total=1)
+    headers = auth_headers()
+    item_id = make_item(client, headers, total=1)
 
     response = client.post(
         f"/items/{item_id}/claims",
-        headers=auth_headers(),
+        headers=headers,
         json={"quantity": 2},
     )
 
@@ -47,8 +55,8 @@ def test_claim_more_than_remaining_returns_409(client: TestClient, auth_headers)
 
 
 def test_release_restores_the_claimed_quantity(client: TestClient, auth_headers):
-    item_id = make_item(client, total=2)
     headers = auth_headers()
+    item_id = make_item(client, headers, total=2)
 
     claimed = client.post(
         f"/items/{item_id}/claims",
@@ -68,8 +76,8 @@ def test_release_restores_the_claimed_quantity(client: TestClient, auth_headers)
 
 
 def test_claim_history_returns_events(client: TestClient, auth_headers):
-    item_id = make_item(client, total=2)
     headers = auth_headers("alice@example.com", display_name="Alice")
+    item_id = make_item(client, headers, total=2)
 
     assert client.post(
         f"/items/{item_id}/claims",
