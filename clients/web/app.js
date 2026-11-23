@@ -227,9 +227,44 @@ function renderItems(items) {
     release.className = "secondary";
     release.addEventListener("click", () => releaseItem(item.id));
 
-    actions.append(claim, release);
-    card.append(title, meta, badge, actions);
+    const history = document.createElement("div");
+    history.className = "history";
+
+    const historyButton = document.createElement("button");
+    historyButton.textContent = "History";
+    historyButton.className = "secondary";
+    historyButton.addEventListener("click", () => showHistory(item.id, history));
+
+    actions.append(claim, release, historyButton);
+    card.append(title, meta, badge, actions, history);
     els.items.append(card);
+  }
+}
+
+async function showHistory(itemId, container) {
+  try {
+    const events = await api(`/items/${itemId}/claims`);
+    container.replaceChildren();
+    if (!events.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No claim events yet.";
+      container.append(empty);
+      return;
+    }
+    const list = document.createElement("ul");
+    for (const event of events) {
+      const entry = document.createElement("li");
+      const when = event.created_at
+        ? new Date(event.created_at).toLocaleString()
+        : "";
+      entry.textContent = `${event.display_name}: ${
+        event.delta > 0 ? "+" : ""
+      }${event.delta}${when ? ` · ${when}` : ""}`;
+      list.append(entry);
+    }
+    container.append(list);
+  } catch (error) {
+    container.textContent = describe(error);
   }
 }
 

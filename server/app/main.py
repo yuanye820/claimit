@@ -2,13 +2,14 @@ import secrets
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, update
+from sqlalchemy import Integer, cast, select, update
 from sqlalchemy.orm import Session
 
 from .auth import create_access_token, current_user, hash_password, verify_password
 from .db import get_db, init_db
-from .models import Claim, Item, ItemList, User
+from .models import Claim, ClaimEvent, Item, ItemList, User
 from .schemas import (
+    ClaimEventOut,
     ClaimOut,
     ClaimRequest,
     ItemCreate,
@@ -114,6 +115,33 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
     return item
 
 
+@app.get("/items/{item_id}/claims", response_model=list[ClaimEventOut])
+def list_claim_events(
+    item_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    if db.get(Item, item_id) is None:
+        raise HTTPException(status_code=404, detail="item not found")
+
+    rows = db.execute(
+        select(ClaimEvent, User.display_name)
+        .join(User, cast(ClaimEvent.user_id, Integer) == User.id)
+        .where(ClaimEvent.item_id == item_id)
+        .order_by(ClaimEvent.created_at, ClaimEvent.id)
+    ).all()
+
+    return [
+        ClaimEventOut(
+            user_id=event.user_id,
+            display_name=display_name,
+            delta=event.delta,
+            created_at=event.created_at,
+        )
+        for event, display_name in rows
+    ]
+
+
 @app.post("/items/{item_id}/claims", response_model=ClaimOut)
 def claim_item(
     item_id: int,
@@ -147,6 +175,13 @@ def claim_item(
     else:
         existing.quantity += payload.quantity
 
+    db.add(
+        ClaimEvent(
+            item_id=item_id,
+            user_id=user_id,
+            delta=payload.quantity,
+        )
+    )
     db.commit()
     return ClaimOut(
         item_id=item_id,
@@ -181,6 +216,13 @@ def release_item(
         update(Item)
         .where(Item.id == item_id)
         .values(remaining=Item.remaining + payload.quantity)
+    )
+    db.add(
+        ClaimEvent(
+            item_id=item_id,
+            user_id=user_id,
+            delta=-payload.quantity,
+        )
     )
     db.commit()
 
