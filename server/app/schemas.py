@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -37,6 +39,13 @@ class ClaimOut(BaseModel):
     user_id: str
     quantity: int
     remaining: int
+
+
+class ClaimEventOut(BaseModel):
+    user_id: str
+    display_name: str
+    delta: int
+    created_at: datetime | None
 
 
 def _normalise_email(value: str) -> str:

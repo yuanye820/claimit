@@ -65,3 +65,28 @@ def test_release_restores_the_claimed_quantity(client: TestClient, auth_headers)
     assert released.status_code == 200
     assert released.json()["quantity"] == 0
     assert client.get(f"/items/{item_id}").json()["remaining"] == 2
+
+
+def test_claim_history_returns_events(client: TestClient, auth_headers):
+    item_id = make_item(client, total=2)
+    headers = auth_headers("alice@example.com", display_name="Alice")
+
+    assert client.post(
+        f"/items/{item_id}/claims",
+        headers=headers,
+        json={"quantity": 1},
+    ).status_code == 200
+    assert client.post(
+        f"/items/{item_id}/releases",
+        headers=headers,
+        json={"quantity": 1},
+    ).status_code == 200
+
+    response = client.get(f"/items/{item_id}/claims", headers=headers)
+
+    assert response.status_code == 200
+    events = response.json()
+    assert [(event["display_name"], event["delta"]) for event in events] == [
+        ("Alice", 1),
+        ("Alice", -1),
+    ]

@@ -157,6 +157,17 @@ button:disabled {
   color: var(--ink);
 }
 
+.history {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.history ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 @media (min-width: 800px) {
   main {
     grid-template-columns: 1fr 1fr;
