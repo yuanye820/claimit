@@ -22,13 +22,17 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     private static final String PREFS = "claimit";
+    // Built-in production endpoint. The UI no longer asks the user for a server URL.
+    private static final String API_BASE = "https://120.26.146.148/claimit-api";
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private SharedPreferences prefs;
     private String token = "";
     private int listId = -1;
 
-    private EditText baseUrlInput;
+    private LinearLayout authScreen;
+    private LinearLayout mainScreen;
+
     private EditText emailInput;
     private EditText passwordInput;
     private EditText displayNameInput;
@@ -36,8 +40,8 @@ public class MainActivity extends AppCompatActivity {
     private EditText listIdInput;
     private EditText itemNameInput;
     private EditText itemTotalInput;
-    private TextView tokenText;
-    private TextView statusText;
+    private TextView authStatusText;
+    private TextView mainStatusText;
     private LinearLayout itemsContainer;
 
     @Override
@@ -47,9 +51,10 @@ public class MainActivity extends AppCompatActivity {
         token = prefs.getString("token", "");
         listId = prefs.getInt("listId", -1);
         setContentView(buildUi());
-        if (!token.isEmpty()) {
-            tokenText.setText("Token: " + shortToken(token));
-            status("Signed in. List ID: " + (listId > 0 ? listId : "none"));
+        if (token.isEmpty()) {
+            showAuth("Sign in to continue");
+        } else {
+            showMain("Signed in. Create or load a list.");
         }
     }
 
@@ -62,14 +67,25 @@ public class MainActivity extends AppCompatActivity {
 
         TextView title = new TextView(this);
         title.setText("ClaimIt");
-        title.setTextSize(26);
+        title.setTextSize(28);
         title.setTypeface(null, Typeface.BOLD);
         root.addView(title);
 
-        baseUrlInput = input("http://10.0.2.2:8000", InputType.TYPE_TEXT_VARIATION_URI);
-        baseUrlInput.setText(prefs.getString("baseUrl", "http://10.0.2.2:8000"));
-        root.addView(label("API base URL (emulator: http://10.0.2.2:8000)"));
-        root.addView(baseUrlInput);
+        TextView subtitle = new TextView(this);
+        subtitle.setText("One shared list. Conflict-safe claims.");
+        subtitle.setTextSize(13);
+        subtitle.setPadding(0, 0, 0, dp(12));
+        root.addView(subtitle);
+
+        authScreen = new LinearLayout(this);
+        authScreen.setOrientation(LinearLayout.VERTICAL);
+        root.addView(authScreen);
+
+        TextView signIn = new TextView(this);
+        signIn.setText("Sign in");
+        signIn.setTextSize(20);
+        signIn.setTypeface(null, Typeface.BOLD);
+        authScreen.addView(signIn);
 
         emailInput = input("Email", InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         passwordInput = input(
@@ -77,61 +93,85 @@ public class MainActivity extends AppCompatActivity {
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );
         displayNameInput = input("Display name", InputType.TYPE_CLASS_TEXT);
-        root.addView(label("Email"));
-        root.addView(emailInput);
-        root.addView(label("Password"));
-        root.addView(passwordInput);
-        root.addView(label("Display name (register only)"));
-        root.addView(displayNameInput);
+        authScreen.addView(label("Email"));
+        authScreen.addView(emailInput);
+        authScreen.addView(label("Password"));
+        authScreen.addView(passwordInput);
+        authScreen.addView(label("Display name (register only)"));
+        authScreen.addView(displayNameInput);
 
         LinearLayout authRow = new LinearLayout(this);
         authRow.setOrientation(LinearLayout.HORIZONTAL);
-        authRow.addView(button("Register", this::register), weightParams());
         authRow.addView(button("Login", this::login), weightParams());
-        root.addView(authRow);
+        authRow.addView(button("Register", this::register), weightParams());
+        authScreen.addView(authRow);
 
-        tokenText = new TextView(this);
-        tokenText.setTextSize(11);
-        root.addView(tokenText);
+        authStatusText = new TextView(this);
+        authStatusText.setTextSize(12);
+        authStatusText.setPadding(0, dp(8), 0, 0);
+        authScreen.addView(authStatusText);
 
-        statusText = new TextView(this);
-        statusText.setTextSize(12);
-        statusText.setPadding(0, dp(8), 0, dp(8));
-        root.addView(statusText);
+        mainScreen = new LinearLayout(this);
+        mainScreen.setOrientation(LinearLayout.VERTICAL);
+        mainScreen.setVisibility(View.GONE);
+        root.addView(mainScreen);
 
-        root.addView(divider());
+        TextView signedIn = new TextView(this);
+        signedIn.setText("Shared list");
+        signedIn.setTextSize(20);
+        signedIn.setTypeface(null, Typeface.BOLD);
+        mainScreen.addView(signedIn);
+
+        mainStatusText = new TextView(this);
+        mainStatusText.setTextSize(12);
+        mainStatusText.setPadding(0, dp(8), 0, dp(8));
+        mainScreen.addView(mainStatusText);
+
+        mainScreen.addView(divider());
 
         listNameInput = input("Trip", InputType.TYPE_CLASS_TEXT);
         listNameInput.setText("Trip");
-        root.addView(label("Create a list"));
-        root.addView(listNameInput);
-        root.addView(button("Create list", this::createList));
+        mainScreen.addView(label("Create a list"));
+        mainScreen.addView(listNameInput);
+        mainScreen.addView(button("Create list", this::createList));
 
         listIdInput = input("List ID", InputType.TYPE_CLASS_NUMBER);
         if (listId > 0) {
             listIdInput.setText(String.valueOf(listId));
         }
-        root.addView(label("List ID (created or existing)"));
-        root.addView(listIdInput);
-        root.addView(button("Load items", this::loadItems));
+        mainScreen.addView(label("List ID (created or existing)"));
+        mainScreen.addView(listIdInput);
+        mainScreen.addView(button("Load items", this::loadItems));
 
         itemNameInput = input("Tent", InputType.TYPE_CLASS_TEXT);
         itemNameInput.setText("Tent");
         itemTotalInput = input("1", InputType.TYPE_CLASS_NUMBER);
         itemTotalInput.setText("1");
-        root.addView(label("Add an item"));
-        root.addView(itemNameInput);
-        root.addView(itemTotalInput);
-        root.addView(button("Add item", this::addItem));
+        mainScreen.addView(label("Add an item"));
+        mainScreen.addView(itemNameInput);
+        mainScreen.addView(itemTotalInput);
+        mainScreen.addView(button("Add item", this::addItem));
 
         itemsContainer = new LinearLayout(this);
         itemsContainer.setOrientation(LinearLayout.VERTICAL);
-        root.addView(itemsContainer);
+        mainScreen.addView(itemsContainer);
 
-        root.addView(divider());
-        root.addView(button("Sign out / clear token", this::clearToken));
+        mainScreen.addView(divider());
+        mainScreen.addView(button("Sign out", this::clearToken));
 
         return scroll;
+    }
+
+    private void showAuth(String message) {
+        authScreen.setVisibility(View.VISIBLE);
+        mainScreen.setVisibility(View.GONE);
+        authStatusText.setText(message);
+    }
+
+    private void showMain(String message) {
+        authScreen.setVisibility(View.GONE);
+        mainScreen.setVisibility(View.VISIBLE);
+        mainStatusText.setText(message);
     }
 
     private void register() {
@@ -143,7 +183,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void auth(String path, boolean includeDisplayName) {
-        final String baseUrl = currentBaseUrl();
         final String email = emailInput.getText().toString().trim();
         final String password = passwordInput.getText().toString();
         final String displayName = displayNameInput.getText().toString().trim();
@@ -165,11 +204,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        status("Calling " + path + "...");
+        status("Signing in...");
         executor.execute(() -> {
             try {
                 ApiClient.Response response =
-                        ApiClient.request(baseUrl, "POST", path, null, body.toString());
+                        ApiClient.request(API_BASE, "POST", path, null, body.toString());
                 runOnUiThread(() -> {
                     if (!response.ok()) {
                         status("HTTP " + response.code + ": " + response.body);
@@ -179,8 +218,8 @@ public class MainActivity extends AppCompatActivity {
                         JSONObject json = new JSONObject(response.body);
                         token = json.getString("access_token");
                         prefs.edit().putString("token", token).apply();
-                        tokenText.setText("Token: " + shortToken(token));
-                        status("Signed in. Create or load a list.");
+                        passwordInput.setText("");
+                        showMain("Signed in. Create or load a list.");
                     } catch (JSONException e) {
                         status("Bad token response: " + response.body);
                     }
@@ -193,10 +232,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void createList() {
         if (token.isEmpty()) {
-            status("Login first");
+            showAuth("Sign in first");
             return;
         }
-        final String baseUrl = currentBaseUrl();
         final String name = listNameInput.getText().toString().trim();
         if (name.isEmpty()) {
             status("List name is required");
@@ -215,7 +253,7 @@ public class MainActivity extends AppCompatActivity {
         executor.execute(() -> {
             try {
                 ApiClient.Response response =
-                        ApiClient.request(baseUrl, "POST", "/lists", token, body.toString());
+                        ApiClient.request(API_BASE, "POST", "/lists", token, body.toString());
                 runOnUiThread(() -> {
                     if (!response.ok()) {
                         status("HTTP " + response.code + ": " + response.body);
@@ -240,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void addItem() {
         if (token.isEmpty()) {
-            status("Login first");
+            showAuth("Sign in first");
             return;
         }
         final int list = currentListId();
@@ -248,7 +286,6 @@ public class MainActivity extends AppCompatActivity {
             status("Create a list or enter a list ID first");
             return;
         }
-        final String baseUrl = currentBaseUrl();
         final String name = itemNameInput.getText().toString().trim();
         final int total = parseInt(itemTotalInput.getText().toString(), -1);
         if (name.isEmpty() || total <= 0) {
@@ -269,7 +306,7 @@ public class MainActivity extends AppCompatActivity {
         executor.execute(() -> {
             try {
                 ApiClient.Response response = ApiClient.request(
-                        baseUrl,
+                        API_BASE,
                         "POST",
                         "/lists/" + list + "/items",
                         token,
@@ -296,7 +333,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadItems() {
         if (token.isEmpty()) {
-            status("Login first");
+            showAuth("Sign in first");
             return;
         }
         final int list = currentListId();
@@ -304,13 +341,12 @@ public class MainActivity extends AppCompatActivity {
             status("Create a list or enter a list ID first");
             return;
         }
-        final String baseUrl = currentBaseUrl();
 
         status("Loading items...");
         executor.execute(() -> {
             try {
                 ApiClient.Response response = ApiClient.request(
-                        baseUrl,
+                        API_BASE,
                         "GET",
                         "/lists/" + list + "/items",
                         token,
@@ -361,10 +397,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void claim(int itemId) {
         if (token.isEmpty()) {
-            status("Login first");
+            showAuth("Sign in first");
             return;
         }
-        final String baseUrl = currentBaseUrl();
         JSONObject body = new JSONObject();
         try {
             body.put("quantity", 1);
@@ -377,7 +412,7 @@ public class MainActivity extends AppCompatActivity {
         executor.execute(() -> {
             try {
                 ApiClient.Response response = ApiClient.request(
-                        baseUrl,
+                        API_BASE,
                         "POST",
                         "/items/" + itemId + "/claims",
                         token,
@@ -402,10 +437,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void release(int itemId) {
         if (token.isEmpty()) {
-            status("Login first");
+            showAuth("Sign in first");
             return;
         }
-        final String baseUrl = currentBaseUrl();
         JSONObject body = new JSONObject();
         try {
             body.put("quantity", 1);
@@ -418,7 +452,7 @@ public class MainActivity extends AppCompatActivity {
         executor.execute(() -> {
             try {
                 ApiClient.Response response = ApiClient.request(
-                        baseUrl,
+                        API_BASE,
                         "POST",
                         "/items/" + itemId + "/releases",
                         token,
@@ -444,18 +478,9 @@ public class MainActivity extends AppCompatActivity {
     private void clearToken() {
         token = "";
         prefs.edit().remove("token").apply();
-        tokenText.setText("");
         itemsContainer.removeAllViews();
-        status("Signed out");
-    }
-
-    private String currentBaseUrl() {
-        String value = baseUrlInput.getText().toString().trim();
-        if (value.isEmpty()) {
-            value = "http://10.0.2.2:8000";
-        }
-        prefs.edit().putString("baseUrl", value).apply();
-        return value;
+        passwordInput.setText("");
+        showAuth("Signed out");
     }
 
     private int currentListId() {
@@ -474,12 +499,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String shortToken(String value) {
-        return value.length() <= 12 ? value : value.substring(0, 12) + "...";
-    }
-
     private void status(String message) {
-        statusText.setText(message);
+        if (mainScreen != null && mainScreen.getVisibility() == View.VISIBLE) {
+            mainStatusText.setText(message);
+        } else if (authStatusText != null) {
+            authStatusText.setText(message);
+        }
     }
 
     private EditText input(String hint, int inputType) {

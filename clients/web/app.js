@@ -1,17 +1,23 @@
 const STORAGE = {
   token: "claimit.token",
-  apiBase: "claimit.apiBase",
   listId: "claimit.listId",
 };
 
+const DEFAULT_API_BASE =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://127.0.0.1:8000"
+    : "/claimit-api";
+
 const state = {
   token: localStorage.getItem(STORAGE.token) || "",
-  apiBase: localStorage.getItem(STORAGE.apiBase) || "http://127.0.0.1:8000",
+  apiBase: DEFAULT_API_BASE,
   listId: Number(localStorage.getItem(STORAGE.listId)) || null,
 };
 
 const els = {
-  apiBase: document.getElementById("api-base"),
+  authCard: document.getElementById("auth-card"),
+  appArea: document.getElementById("app-area"),
   email: document.getElementById("email"),
   password: document.getElementById("password"),
   displayName: document.getElementById("display-name"),
@@ -32,8 +38,23 @@ const els = {
 
 function save() {
   localStorage.setItem(STORAGE.token, state.token);
-  localStorage.setItem(STORAGE.apiBase, state.apiBase);
   localStorage.setItem(STORAGE.listId, state.listId ? String(state.listId) : "");
+}
+
+function showAuth(message = "") {
+  els.authCard.hidden = false;
+  els.appArea.hidden = true;
+  if (message) {
+    setStatus(els.authStatus, message);
+  }
+}
+
+function showApp(message = "") {
+  els.authCard.hidden = true;
+  els.appArea.hidden = false;
+  if (message) {
+    setStatus(els.itemsStatus, message);
+  }
 }
 
 function setStatus(element, text, kind = "") {
@@ -83,14 +104,7 @@ async function api(path, options = {}) {
   return data;
 }
 
-function syncApiBase() {
-  const value = els.apiBase.value.trim() || "http://127.0.0.1:8000";
-  state.apiBase = value;
-  localStorage.setItem(STORAGE.apiBase, value);
-}
-
 async function register() {
-  syncApiBase();
   const email = els.email.value.trim();
   const password = els.password.value;
   const displayName = els.displayName.value.trim() || email;
@@ -105,14 +119,14 @@ async function register() {
     });
     state.token = data.access_token;
     save();
-    setStatus(els.authStatus, "Registered and signed in.", "ok");
+    els.password.value = "";
+    showApp("Registered and signed in.");
   } catch (error) {
     setStatus(els.authStatus, describe(error), "warn");
   }
 }
 
 async function login() {
-  syncApiBase();
   const email = els.email.value.trim();
   const password = els.password.value;
   if (!email || !password) {
@@ -126,16 +140,16 @@ async function login() {
     });
     state.token = data.access_token;
     save();
-    setStatus(els.authStatus, "Signed in.", "ok");
+    els.password.value = "";
+    showApp("Signed in. Create or load a list.");
   } catch (error) {
     setStatus(els.authStatus, describe(error), "warn");
   }
 }
 
 async function createList() {
-  syncApiBase();
   if (!state.token) {
-    setStatus(els.itemsStatus, "Log in first.", "warn");
+    showAuth("Log in first.");
     return;
   }
   const name = els.listName.value.trim();
@@ -163,9 +177,8 @@ function currentListId() {
 }
 
 async function addItem() {
-  syncApiBase();
   if (!state.token) {
-    setStatus(els.itemsStatus, "Log in first.", "warn");
+    showAuth("Log in first.");
     return;
   }
   const listId = currentListId();
@@ -269,9 +282,8 @@ async function showHistory(itemId, container) {
 }
 
 async function loadItems(successMessage) {
-  syncApiBase();
   if (!state.token) {
-    setStatus(els.itemsStatus, "Log in first.", "warn");
+    showAuth("Log in first.");
     return;
   }
   const listId = currentListId();
@@ -327,15 +339,17 @@ async function releaseItem(itemId) {
 function logout() {
   state.token = "";
   save();
-  setStatus(els.authStatus, "Signed out.");
+  els.items.replaceChildren();
+  showAuth("Signed out.");
 }
 
-els.apiBase.value = state.apiBase;
 if (state.listId) {
   els.listId.value = String(state.listId);
 }
 if (state.token) {
-  setStatus(els.authStatus, "Signed in.");
+  showApp("Signed in. Create or load a list.");
+} else {
+  showAuth("Sign in to continue.");
 }
 
 els.register.addEventListener("click", register);
