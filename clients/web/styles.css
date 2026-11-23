@@ -106,6 +106,19 @@ button:disabled {
   gap: 8px;
 }
 
+.row.space-between {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-area {
+  display: contents;
+}
+
+[hidden] {
+  display: none !important;
+}
+
 .status {
   min-height: 1.2em;
   margin: 12px 0 0;

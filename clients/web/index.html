@@ -13,10 +13,9 @@
   </header>
 
   <main>
-    <section class="card">
+    <section class="card" id="auth-card">
       <h2>Sign in</h2>
-      <label for="api-base">API base URL</label>
-      <input id="api-base" value="http://127.0.0.1:8000">
+      <p class="muted">Log in to open your shared list, or create an account.</p>
 
       <label for="email">Email</label>
       <input id="email" type="email" autocomplete="username">
@@ -28,40 +27,48 @@
       <input id="display-name">
 
       <div class="row">
-        <button id="register">Register</button>
         <button id="login">Login</button>
-        <button id="logout" class="secondary">Sign out</button>
+        <button id="register" class="secondary">Register</button>
       </div>
       <p id="auth-status" class="status" aria-live="polite"></p>
     </section>
 
-    <section class="card">
-      <h2>List</h2>
-      <label for="list-name">List name</label>
-      <input id="list-name" value="Trip">
-      <button id="create-list">Create list</button>
+    <div id="app-area" class="app-area" hidden>
+      <section class="card wide">
+        <div class="row space-between">
+          <strong>Shared list</strong>
+          <button id="logout" class="secondary">Sign out</button>
+        </div>
+        <p id="items-status" class="status" aria-live="polite"></p>
+      </section>
 
-      <label for="list-id">List ID</label>
-      <input id="list-id" type="number" min="1">
-      <button id="load-items">Load items</button>
-    </section>
+      <section class="card">
+        <h2>List</h2>
+        <label for="list-name">List name</label>
+        <input id="list-name" value="Trip">
+        <button id="create-list">Create list</button>
 
-    <section class="card">
-      <h2>Add item</h2>
-      <label for="item-name">Item name</label>
-      <input id="item-name" value="Tent">
+        <label for="list-id">List ID</label>
+        <input id="list-id" type="number" min="1">
+        <button id="load-items">Load items</button>
+      </section>
 
-      <label for="item-total">Total</label>
-      <input id="item-total" type="number" min="1" value="1">
+      <section class="card">
+        <h2>Add item</h2>
+        <label for="item-name">Item name</label>
+        <input id="item-name" value="Tent">
 
-      <button id="add-item">Add item</button>
-    </section>
+        <label for="item-total">Total</label>
+        <input id="item-total" type="number" min="1" value="1">
 
-    <section class="card wide">
-      <h2>Items</h2>
-      <div id="items" class="items"></div>
-      <p id="items-status" class="status" aria-live="polite"></p>
-    </section>
+        <button id="add-item">Add item</button>
+      </section>
+
+      <section class="card wide">
+        <h2>Items</h2>
+        <div id="items" class="items"></div>
+      </section>
+    </div>
   </main>
 
   <script src="app.js"></script>
