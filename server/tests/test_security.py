@@ -46,7 +46,11 @@ def test_invalid_token_is_rejected(client: TestClient):
 
 def test_tampered_token_is_rejected(client: TestClient, auth_headers):
     token = auth_headers()["Authorization"].removeprefix("Bearer ")
-    tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+    header, payload, signature = token.split(".")
+    # Change the first signature character, not the last: the final base64url
+    # character can differ only in unused padding bits and decode identically.
+    replacement = "A" if signature[0] != "A" else "B"
+    tampered = f"{header}.{payload}.{replacement}{signature[1:]}"
 
     response = client.get(
         "/auth/me",
