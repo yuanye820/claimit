@@ -14,17 +14,17 @@ def make_item(client: TestClient, total: int = 1) -> int:
     return response.json()["id"]
 
 
-def test_claim_last_unit_twice_one_conflicts(client: TestClient):
+def test_claim_last_unit_twice_one_conflicts(client: TestClient, auth_headers):
     item_id = make_item(client, total=1)
 
     first = client.post(
         f"/items/{item_id}/claims",
-        headers={"X-User-Id": "alice"},
+        headers=auth_headers("alice@example.com", display_name="Alice"),
         json={"quantity": 1},
     )
     second = client.post(
         f"/items/{item_id}/claims",
-        headers={"X-User-Id": "bob"},
+        headers=auth_headers("bob@example.com", display_name="Bob"),
         json={"quantity": 1},
     )
 
@@ -33,12 +33,12 @@ def test_claim_last_unit_twice_one_conflicts(client: TestClient):
     assert item["remaining"] == 0
 
 
-def test_claim_more_than_remaining_returns_409(client: TestClient):
+def test_claim_more_than_remaining_returns_409(client: TestClient, auth_headers):
     item_id = make_item(client, total=1)
 
     response = client.post(
         f"/items/{item_id}/claims",
-        headers={"X-User-Id": "alice"},
+        headers=auth_headers(),
         json={"quantity": 2},
     )
 
@@ -46,19 +46,20 @@ def test_claim_more_than_remaining_returns_409(client: TestClient):
     assert client.get(f"/items/{item_id}").json()["remaining"] == 1
 
 
-def test_release_restores_the_claimed_quantity(client: TestClient):
+def test_release_restores_the_claimed_quantity(client: TestClient, auth_headers):
     item_id = make_item(client, total=2)
+    headers = auth_headers()
 
     claimed = client.post(
         f"/items/{item_id}/claims",
-        headers={"X-User-Id": "alice"},
+        headers=headers,
         json={"quantity": 1},
     )
     assert claimed.status_code == 200
 
     released = client.post(
         f"/items/{item_id}/releases",
-        headers={"X-User-Id": "alice"},
+        headers=headers,
         json={"quantity": 1},
     )
     assert released.status_code == 200

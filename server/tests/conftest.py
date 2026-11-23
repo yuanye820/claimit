@@ -35,3 +35,25 @@ def client():
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def auth_headers(client):
+    def _make(
+        email: str = "alice@example.com",
+        password: str = "password123",
+        display_name: str = "Alice",
+    ) -> dict[str, str]:
+        response = client.post(
+            "/auth/register",
+            json={
+                "email": email,
+                "password": password,
+                "display_name": display_name,
+            },
+        )
+        assert response.status_code == 201, response.text
+        token = response.json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
+
+    return _make
