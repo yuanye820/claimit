@@ -1,0 +1,97 @@
+# Iteration 2 — Auditability, security and review enforcement
+
+**Dates:** 23 November 2026
+**Goal:** close the two highest-risk gaps from Iteration 1 — disputed claims with no audit trail, and a review process that existed on paper only — and evaluate security with repeatable evidence.
+
+## Scope and selection
+
+| Issue | Increment | Source |
+|---|---|---|
+| [#15](https://github.com/yuanye820/claimit/issues/15) | Claim audit history | Iteration 1 retrospective: a claim changes a number but leaves no attributable record. |
+| [#17](https://github.com/yuanye820/claimit/issues/17) | Security hardening and regression tests | Quality-evaluation scenario chosen for Assignment 2; also exposes the unauthenticated-write finding. |
+| — | Mandatory review enforcement | Process improvement selected from the Iteration 1 retrospective (review coverage 0/3). |
+
+## Delivered
+
+| PR | Author | Change | Changed lines | Files | CI | Review |
+|---|---|---|---:|---:|---|---|
+| [#16](https://github.com/yuanye820/claimit/pull/16) | `yuanye820` | `claim_events` table, event writes in claim/release, `GET /items/{id}/claims`, web History panel, API test | 147 | 7 | `test`, `api` green | pending |
+| [#18](https://github.com/yuanye820/claimit/pull/18) | `yuanye820` | Authentication on list/item creation, 12 security tests, `db_session` fixture | 295 | 6 | `test`, `api` green | pending |
+
+PR #18 is stacked on #16 because both touch the API test suite. It is reviewed as a separate change and retargeted to `main` after #16 merges.
+
+## Audit history behaviour
+
+- A successful claim appends `(item_id, user_id, +quantity, created_at)`.
+- A successful release appends `(item_id, user_id, -quantity, created_at)`.
+- The event write shares the transaction with the quantity change. A `409` path raises before the event is added, so rejected attempts leave no history.
+- `GET /items/{item_id}/claims` requires a bearer token, returns `404` for an unknown item, and joins the user table for `display_name` only. It does not return emails or password hashes.
+- The web client renders the event stream under each item; timestamps are formatted in the browser's local time zone.
+- The API test claims one unit, releases it, and asserts the sequence `[("Alice", +1), ("Alice", -1)]`.
+
+## Process improvement: mandatory review
+
+**Baseline (Iteration 1):** 3 PRs, 0 with an approval, review coverage **0/3 (0%)**, mean size **695 changed lines**.
+
+**Intervention (applied to `main` on 23 November 2026):**
+
+- Require a pull request before merging.
+- Require **one approving review**; dismiss stale approvals when new commits are pushed.
+- Require the `test` and `api` status checks.
+- Disallow direct pushes, force pushes and branch deletion.
+- Require linear history and conversation resolution.
+- Apply the rules to administrators as well.
+
+A review checklist was added at [review-checklist.md](../review-checklist.md). PR authors state a review focus; reviewers must leave at least one substantive comment, not only an approval.
+
+**Iteration 2 measurements (recorded after review):**
+
+| Measure | Baseline | Iteration 2 |
+|---|---|---|
+| PRs with at least one approval | 0/3 (0%) | to be recorded |
+| Mean changed lines per PR | 695 | 221 (147 and 295) |
+| PRs at or below 300 changed lines | 0/3 | 2/2 |
+| CI pass rate at submission | 3/3 | 2/2 |
+| Time to first review | not measured | to be recorded |
+
+The size target was met, which makes a substantive review feasible. Whether review coverage reaches 100% is the decisive check: the intervention is only successful if the protected branch actually blocks an unapproved merge.
+
+## Quality evaluation: security
+
+The full scenario, inputs, expected/actual results and residual risks are in [security-evaluation.md](../security-evaluation.md). Summary:
+
+| Finding | Severity | Status |
+|---|---|---|
+| `POST /lists` and `POST /lists/{id}/items` accepted anonymous requests | High | Fixed in PR #18 |
+| Token rejection paths had no regression tests | Medium | Fixed in PR #18 |
+| Password storage had no test proving plaintext absence or unique salts | Medium | Fixed in PR #18 |
+| Read endpoints have no per-list membership check (IDOR) | Medium | Documented as residual risk |
+| No rate limiting on login/registration | Low | Documented as residual risk |
+| Development JWT secret has a usable default | Medium | Deployment requirement documented |
+
+The suite grew from 15 to **27 passing tests**; the 12 security tests run in the existing PostgreSQL `api` CI job as well as locally on SQLite.
+
+## What did not go to plan
+
+1. **The security review found a real defect.** The iteration started as “add tests for authentication” and became a fix when anonymous list creation was confirmed. This is a useful outcome, but it also shows that the Iteration 1 definition of done was not applied to every write endpoint.
+2. **Stacked PRs add coordination cost.** #18 cannot merge until #16 does. The dependency is explicit in the PR body, but it complicates review order and branch cleanup.
+3. **Android remains outside CI.** The new API contract is exercised by the web client and tests, but no automated Android build runs on pull requests.
+4. **Review latency is the remaining process risk.** Branch protection can block a merge, but it cannot make a reviewer respond. If reviews arrive late, the team needs a rotation or a response-time target in the next iteration.
+
+## Retrospective actions
+
+| Action | Owner | Measure |
+|---|---|---|
+| Review #16 then #18; post substantive comments | Xirui, Junyu | 100% of Iteration 2 PRs approved before merge |
+| Keep the 300-line target for the next increment | All | PR size at submission |
+| Add an Android build job to CI | Junyu | APK assembles on every PR |
+| Add membership checks before sharing lists beyond the demo group | Xirui | 403 for non-members on list reads |
+| Set `JWT_SECRET` and add login rate limiting before public deployment | Liye | Deployment checklist item verified |
+
+## Evidence
+
+- Issues: [#15](https://github.com/yuanye820/claimit/issues/15), [#17](https://github.com/yuanye820/claimit/issues/17)
+- Pull requests: [#16](https://github.com/yuanye820/claimit/pull/16), [#18](https://github.com/yuanye820/claimit/pull/18)
+- Screenshot: [iteration-2-claim-history.png](../evidence/iteration-2-claim-history.png)
+- Security scenario: [security-evaluation.md](../security-evaluation.md)
+- CI: [Actions](https://github.com/yuanye820/claimit/actions)
