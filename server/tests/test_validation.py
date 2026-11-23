@@ -14,7 +14,7 @@ def make_item(client: TestClient) -> int:
     return response.json()["id"]
 
 
-def test_claim_requires_user_header(client: TestClient):
+def test_claim_requires_bearer_token(client: TestClient):
     item_id = make_item(client)
 
     response = client.post(
@@ -25,34 +25,34 @@ def test_claim_requires_user_header(client: TestClient):
     assert response.status_code == 401
 
 
-def test_claim_rejects_zero_quantity(client: TestClient):
+def test_claim_rejects_zero_quantity(client: TestClient, auth_headers):
     item_id = make_item(client)
 
     response = client.post(
         f"/items/{item_id}/claims",
-        headers={"X-User-Id": "alice"},
+        headers=auth_headers(),
         json={"quantity": 0},
     )
 
     assert response.status_code == 422
 
 
-def test_claim_unknown_item_returns_404(client: TestClient):
+def test_claim_unknown_item_returns_404(client: TestClient, auth_headers):
     response = client.post(
         "/items/999/claims",
-        headers={"X-User-Id": "alice"},
+        headers=auth_headers(),
         json={"quantity": 1},
     )
 
     assert response.status_code == 404
 
 
-def test_release_without_claim_returns_409(client: TestClient):
+def test_release_without_claim_returns_409(client: TestClient, auth_headers):
     item_id = make_item(client)
 
     response = client.post(
         f"/items/{item_id}/releases",
-        headers={"X-User-Id": "alice"},
+        headers=auth_headers(),
         json={"quantity": 1},
     )
 

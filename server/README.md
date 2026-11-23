@@ -5,11 +5,15 @@ FastAPI + PostgreSQL backend for the claim rule.
 ## Endpoints
 
 - `GET /health`
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET  /auth/me`
 - `POST /lists`
 - `POST /lists/{list_id}/items`
+- `GET /lists/{list_id}/items`
 - `GET /items/{item_id}`
-- `POST /items/{item_id}/claims` — `X-User-Id` header required
-- `POST /items/{item_id}/releases` — `X-User-Id` header required
+- `POST /items/{item_id}/claims` — bearer token required
+- `POST /items/{item_id}/releases` — bearer token required
 
 The claim is one conditional update:
 
@@ -63,6 +67,14 @@ deployment.
 
 ## Authentication
 
-`X-User-Id` is a prototype header so the claim rule can be tested without a
-login flow. JWT authentication is planned for Iteration 1; do not expose this
-header-based mode to the public internet.
+`POST /auth/register` and `POST /auth/login` return a bearer token. Send it as:
+
+```text
+Authorization: Bearer <token>
+```
+
+`POST /items/{item_id}/claims` and `POST /items/{item_id}/releases` require a
+valid token; without one they return 401.
+
+Set `JWT_SECRET` to a random value of at least 32 bytes in deployment. The
+default is only for local development.
