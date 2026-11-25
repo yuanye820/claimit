@@ -1,17 +1,23 @@
 package com.claimit.app;
 
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.InputType;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -25,13 +31,34 @@ public class MainActivity extends AppCompatActivity {
     // Built-in production endpoint. The UI no longer asks the user for a server URL.
     private static final String API_BASE = "https://120.26.146.148/claimit-api";
 
+    private static final int PAPER = Color.rgb(247, 244, 240);
+    private static final int NAVY = Color.rgb(20, 32, 43);
+    private static final int INK = Color.rgb(26, 35, 48);
+    private static final int WHITE = Color.rgb(255, 255, 255);
+    private static final int ORANGE = Color.rgb(212, 135, 90);
+    private static final int SLATE = Color.rgb(91, 101, 115);
+    private static final int SOFT = Color.rgb(239, 231, 223);
+    private static final int LINE = Color.rgb(222, 211, 202);
+    private static final int GREEN = Color.rgb(47, 111, 78);
+    private static final int GREEN_BG = Color.rgb(232, 240, 234);
+    private static final int RED = Color.rgb(179, 66, 58);
+    private static final int RED_BG = Color.rgb(247, 232, 228);
+
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private SharedPreferences prefs;
     private String token = "";
     private int listId = -1;
+    private boolean registerMode = false;
 
     private LinearLayout authScreen;
     private LinearLayout mainScreen;
+    private LinearLayout itemsContainer;
+
+    private TextView authTitle;
+    private TextView authSubtitle;
+    private TextView authStatusText;
+    private TextView mainStatusText;
+    private LinearLayout displayNameField;
 
     private EditText emailInput;
     private EditText passwordInput;
@@ -40,138 +67,239 @@ public class MainActivity extends AppCompatActivity {
     private EditText listIdInput;
     private EditText itemNameInput;
     private EditText itemTotalInput;
-    private TextView authStatusText;
-    private TextView mainStatusText;
-    private LinearLayout itemsContainer;
+
+    private MaterialButton primaryAuthButton;
+    private MaterialButton secondaryAuthButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().setStatusBarColor(NAVY);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         token = prefs.getString("token", "");
         listId = prefs.getInt("listId", -1);
         setContentView(buildUi());
         if (token.isEmpty()) {
-            showAuth("Sign in to continue");
+            showAuth("Sign in to continue.");
         } else {
-            showMain("Signed in. Create or load a list.");
+            showMain("Create or open a list to get started.");
         }
     }
 
     private View buildUi() {
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(PAPER);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(20), dp(20), dp(20));
         scroll.addView(root);
 
-        TextView title = new TextView(this);
-        title.setText("ClaimIt");
-        title.setTextSize(28);
-        title.setTypeface(null, Typeface.BOLD);
-        root.addView(title);
+        root.addView(buildHeader());
 
-        TextView subtitle = new TextView(this);
-        subtitle.setText("One shared list. Conflict-safe claims.");
-        subtitle.setTextSize(13);
-        subtitle.setPadding(0, 0, 0, dp(12));
-        root.addView(subtitle);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(18), dp(20), dp(32));
+        root.addView(content, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
 
         authScreen = new LinearLayout(this);
         authScreen.setOrientation(LinearLayout.VERTICAL);
-        root.addView(authScreen);
-
-        TextView signIn = new TextView(this);
-        signIn.setText("Sign in");
-        signIn.setTextSize(20);
-        signIn.setTypeface(null, Typeface.BOLD);
-        authScreen.addView(signIn);
-
-        emailInput = input("Email", InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        passwordInput = input(
-                "Password",
-                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
-        );
-        displayNameInput = input("Display name", InputType.TYPE_CLASS_TEXT);
-        authScreen.addView(label("Email"));
-        authScreen.addView(emailInput);
-        authScreen.addView(label("Password"));
-        authScreen.addView(passwordInput);
-        authScreen.addView(label("Display name (register only)"));
-        authScreen.addView(displayNameInput);
-
-        LinearLayout authRow = new LinearLayout(this);
-        authRow.setOrientation(LinearLayout.HORIZONTAL);
-        authRow.addView(button("Login", this::login), weightParams());
-        authRow.addView(button("Register", this::register), weightParams());
-        authScreen.addView(authRow);
-
-        authStatusText = new TextView(this);
-        authStatusText.setTextSize(12);
-        authStatusText.setPadding(0, dp(8), 0, 0);
-        authScreen.addView(authStatusText);
+        content.addView(authScreen);
 
         mainScreen = new LinearLayout(this);
         mainScreen.setOrientation(LinearLayout.VERTICAL);
         mainScreen.setVisibility(View.GONE);
-        root.addView(mainScreen);
+        content.addView(mainScreen);
 
-        TextView signedIn = new TextView(this);
-        signedIn.setText("Shared list");
-        signedIn.setTextSize(20);
-        signedIn.setTypeface(null, Typeface.BOLD);
-        mainScreen.addView(signedIn);
+        buildAuthScreen();
+        buildMainScreen();
 
-        mainStatusText = new TextView(this);
-        mainStatusText.setTextSize(12);
-        mainStatusText.setPadding(0, dp(8), 0, dp(8));
-        mainScreen.addView(mainStatusText);
+        return scroll;
+    }
 
-        mainScreen.addView(divider());
+    private View buildHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setBackgroundColor(NAVY);
+        header.setPadding(dp(22), statusBarHeight() + dp(18), dp(22), dp(22));
 
-        listNameInput = input("Trip", InputType.TYPE_CLASS_TEXT);
+        TextView title = text("ClaimIt", 32, WHITE, true);
+        header.addView(title);
+
+        TextView subtitle = text("One shared list. Conflict-safe claims.", 13, Color.rgb(201, 210, 218), false);
+        LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        subParams.topMargin = dp(6);
+        header.addView(subtitle, subParams);
+        return header;
+    }
+
+    private void buildAuthScreen() {
+        MaterialCardView card = card();
+        authScreen.addView(card, cardParams());
+
+        LinearLayout body = cardBody(card);
+        authTitle = text("Sign in", 24, INK, true);
+        body.addView(authTitle);
+
+        authSubtitle = text("Use your email and password to continue.", 13, SLATE, false);
+        addWithTop(body, authSubtitle, dp(4));
+
+        emailInput = addField(body, "Email", InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        passwordInput = addField(
+                body,
+                "Password",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+
+        Field displayName = field("Display name", InputType.TYPE_CLASS_TEXT);
+        displayNameInput = displayName.input;
+        displayNameField = displayName.container;
+        displayNameField.setVisibility(View.GONE);
+        addFieldLayout(body, displayNameField);
+
+        primaryAuthButton = primaryButton("Sign in");
+        addWithTop(body, primaryAuthButton, dp(8));
+        primaryAuthButton.setOnClickListener(v -> {
+            if (registerMode) {
+                register();
+            } else {
+                login();
+            }
+        });
+
+        secondaryAuthButton = softButton("Create account");
+        addWithTop(body, secondaryAuthButton, dp(8));
+        secondaryAuthButton.setOnClickListener(v -> setAuthMode(!registerMode));
+
+        authStatusText = text("", 12, SLATE, false);
+        addWithTop(body, authStatusText, dp(14));
+
+        TextView hint = text("The server address is built in. Just sign in.", 11, SLATE, false);
+        addWithTop(body, hint, dp(18));
+    }
+
+    private void buildMainScreen() {
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = text("Shared list", 24, INK, true);
+        top.addView(title, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        MaterialButton signOut = smallButton("Sign out", SOFT, INK);
+        top.addView(signOut, new LinearLayout.LayoutParams(dp(96), dp(40)));
+        signOut.setOnClickListener(v -> clearToken());
+        mainScreen.addView(top);
+
+        mainStatusText = text("", 12, SLATE, false);
+        addWithTop(mainScreen, mainStatusText, dp(6));
+
+        MaterialCardView listCard = card();
+        mainScreen.addView(listCard, cardParams());
+        LinearLayout listBody = cardBody(listCard);
+        listBody.addView(text("Create or open a list", 18, INK, true));
+
+        listNameInput = addField(listBody, "List name", InputType.TYPE_CLASS_TEXT);
         listNameInput.setText("Trip");
-        mainScreen.addView(label("Create a list"));
-        mainScreen.addView(listNameInput);
-        mainScreen.addView(button("Create list", this::createList));
 
-        listIdInput = input("List ID", InputType.TYPE_CLASS_NUMBER);
+        MaterialButton create = primaryButton("Create list");
+        addWithTop(listBody, create, dp(4));
+        create.setOnClickListener(v -> createList());
+
+        LinearLayout openRow = new LinearLayout(this);
+        openRow.setOrientation(LinearLayout.HORIZONTAL);
+        openRow.setGravity(Gravity.BOTTOM);
+        LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        openParams.topMargin = dp(14);
+        listBody.addView(openRow, openParams);
+
+        Field listIdField = field("List ID", InputType.TYPE_CLASS_NUMBER);
+        listIdInput = listIdField.input;
         if (listId > 0) {
             listIdInput.setText(String.valueOf(listId));
         }
-        mainScreen.addView(label("List ID (created or existing)"));
-        mainScreen.addView(listIdInput);
-        mainScreen.addView(button("Load items", this::loadItems));
+        LinearLayout.LayoutParams idParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        idParams.rightMargin = dp(10);
+        openRow.addView(listIdField.container, idParams);
+        MaterialButton load = smallButton("Load items", NAVY, WHITE);
+        openRow.addView(load, new LinearLayout.LayoutParams(dp(124), dp(56)));
+        load.setOnClickListener(v -> loadItems());
 
-        itemNameInput = input("Tent", InputType.TYPE_CLASS_TEXT);
+        MaterialCardView addCard = card();
+        mainScreen.addView(addCard, cardParams());
+        LinearLayout addBody = cardBody(addCard);
+        addBody.addView(text("Add an item", 18, INK, true));
+
+        LinearLayout addRow = new LinearLayout(this);
+        addRow.setOrientation(LinearLayout.HORIZONTAL);
+        addRow.setGravity(Gravity.BOTTOM);
+        LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        addParams.topMargin = dp(4);
+        addBody.addView(addRow, addParams);
+
+        Field itemNameField = field("Item name", InputType.TYPE_CLASS_TEXT);
+        itemNameInput = itemNameField.input;
         itemNameInput.setText("Tent");
-        itemTotalInput = input("1", InputType.TYPE_CLASS_NUMBER);
+        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f);
+        nameParams.rightMargin = dp(10);
+        addRow.addView(itemNameField.container, nameParams);
+
+        Field totalField = field("Total", InputType.TYPE_CLASS_NUMBER);
+        itemTotalInput = totalField.input;
         itemTotalInput.setText("1");
-        mainScreen.addView(label("Add an item"));
-        mainScreen.addView(itemNameInput);
-        mainScreen.addView(itemTotalInput);
-        mainScreen.addView(button("Add item", this::addItem));
+        addRow.addView(totalField.container, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        MaterialButton add = primaryButton("Add item");
+        addWithTop(addBody, add, dp(4));
+        add.setOnClickListener(v -> addItem());
+
+        TextView itemsTitle = text("Items", 20, INK, true);
+        addWithTop(mainScreen, itemsTitle, dp(22));
 
         itemsContainer = new LinearLayout(this);
         itemsContainer.setOrientation(LinearLayout.VERTICAL);
-        mainScreen.addView(itemsContainer);
+        addWithTop(mainScreen, itemsContainer, dp(10));
+        itemsContainer.addView(text("Open a list to see its items.", 13, SLATE, false));
+    }
 
-        mainScreen.addView(divider());
-        mainScreen.addView(button("Sign out", this::clearToken));
-
-        return scroll;
+    private void setAuthMode(boolean register) {
+        registerMode = register;
+        authTitle.setText(register ? "Create account" : "Sign in");
+        authSubtitle.setText(register
+                ? "Create an account to start a shared list."
+                : "Use your email and password to continue.");
+        displayNameField.setVisibility(register ? View.VISIBLE : View.GONE);
+        primaryAuthButton.setText(register ? "Create account" : "Sign in");
+        secondaryAuthButton.setText(register ? "Back to sign in" : "Create account");
+        status("");
     }
 
     private void showAuth(String message) {
         authScreen.setVisibility(View.VISIBLE);
         mainScreen.setVisibility(View.GONE);
-        authStatusText.setText(message);
+        if (authStatusText != null) {
+            authStatusText.setText(message);
+        }
     }
 
     private void showMain(String message) {
         authScreen.setVisibility(View.GONE);
         mainScreen.setVisibility(View.VISIBLE);
-        mainStatusText.setText(message);
+        if (mainStatusText != null) {
+            mainStatusText.setText(message);
+        }
     }
 
     private void register() {
@@ -188,7 +316,7 @@ public class MainActivity extends AppCompatActivity {
         final String displayName = displayNameInput.getText().toString().trim();
 
         if (email.isEmpty() || password.isEmpty()) {
-            status("Email and password are required");
+            status("Email and password are required.");
             return;
         }
 
@@ -219,7 +347,8 @@ public class MainActivity extends AppCompatActivity {
                         token = json.getString("access_token");
                         prefs.edit().putString("token", token).apply();
                         passwordInput.setText("");
-                        showMain("Signed in. Create or load a list.");
+                        setAuthMode(false);
+                        showMain("Signed in. Create or open a list.");
                     } catch (JSONException e) {
                         status("Bad token response: " + response.body);
                     }
@@ -232,12 +361,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void createList() {
         if (token.isEmpty()) {
-            showAuth("Sign in first");
+            showAuth("Sign in first.");
             return;
         }
         final String name = listNameInput.getText().toString().trim();
         if (name.isEmpty()) {
-            status("List name is required");
+            status("List name is required.");
             return;
         }
 
@@ -245,7 +374,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             body.put("name", name);
         } catch (JSONException e) {
-            status("JSON error");
+            status("JSON error.");
             return;
         }
 
@@ -264,8 +393,7 @@ public class MainActivity extends AppCompatActivity {
                         listId = json.getInt("id");
                         prefs.edit().putInt("listId", listId).apply();
                         listIdInput.setText(String.valueOf(listId));
-                        status("List " + listId + " created (code "
-                                + json.optString("code") + ")");
+                        status("List " + listId + " created. Add an item next.");
                     } catch (JSONException e) {
                         status("Bad list response: " + response.body);
                     }
@@ -278,18 +406,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void addItem() {
         if (token.isEmpty()) {
-            showAuth("Sign in first");
+            showAuth("Sign in first.");
             return;
         }
         final int list = currentListId();
         if (list <= 0) {
-            status("Create a list or enter a list ID first");
+            status("Open a list first.");
             return;
         }
         final String name = itemNameInput.getText().toString().trim();
         final int total = parseInt(itemTotalInput.getText().toString(), -1);
         if (name.isEmpty() || total <= 0) {
-            status("Item name and total > 0 are required");
+            status("Item name and total must be positive.");
             return;
         }
 
@@ -298,7 +426,7 @@ public class MainActivity extends AppCompatActivity {
             body.put("name", name);
             body.put("total", total);
         } catch (JSONException e) {
-            status("JSON error");
+            status("JSON error.");
             return;
         }
 
@@ -317,13 +445,7 @@ public class MainActivity extends AppCompatActivity {
                         status("HTTP " + response.code + ": " + response.body);
                         return;
                     }
-                    try {
-                        JSONObject json = new JSONObject(response.body);
-                        status("Item " + json.getInt("id") + " added");
-                        loadItems();
-                    } catch (JSONException e) {
-                        status("Bad item response: " + response.body);
-                    }
+                    loadItems();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> status("Network error: " + e.getMessage()));
@@ -333,12 +455,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadItems() {
         if (token.isEmpty()) {
-            showAuth("Sign in first");
+            showAuth("Sign in first.");
             return;
         }
         final int list = currentListId();
         if (list <= 0) {
-            status("Create a list or enter a list ID first");
+            status("Open a list first.");
             return;
         }
 
@@ -359,11 +481,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                     try {
                         JSONArray array = new JSONArray(response.body);
-                        itemsContainer.removeAllViews();
-                        for (int i = 0; i < array.length(); i++) {
-                            itemsContainer.addView(itemRow(array.getJSONObject(i)));
-                        }
-                        status("Loaded " + array.length() + " item(s)");
+                        renderItems(array);
+                        status("Loaded " + array.length() + " item(s).");
                     } catch (JSONException e) {
                         status("Bad items response: " + response.body);
                     }
@@ -374,41 +493,84 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void renderItems(JSONArray array) throws JSONException {
+        itemsContainer.removeAllViews();
+        if (array.length() == 0) {
+            itemsContainer.addView(text("No items yet. Add the first one above.", 13, SLATE, false));
+            return;
+        }
+        for (int i = 0; i < array.length(); i++) {
+            itemsContainer.addView(itemRow(array.getJSONObject(i)), cardParams());
+        }
+    }
+
     private View itemRow(JSONObject item) throws JSONException {
         final int id = item.getInt("id");
         final String name = item.getString("name");
         final int remaining = item.getInt("remaining");
+        final int total = item.getInt("total");
 
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setPadding(0, dp(8), 0, dp(8));
+        MaterialCardView card = card();
+        card.setCardElevation(dp(0));
+        card.setStrokeColor(ColorStateList.valueOf(LINE));
+        card.setStrokeWidth(dp(1));
+        LinearLayout body = cardBody(card);
 
-        TextView text = new TextView(this);
-        text.setText(name + "  |  id " + id + "  |  remaining " + remaining);
-        row.addView(text);
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.addView(text(name, 17, INK, true),
+                new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView badge = text(remaining > 0 ? remaining + " left" : "full", 11,
+                remaining > 0 ? GREEN : RED, true);
+        GradientDrawable badgeBg = new GradientDrawable();
+        badgeBg.setColor(remaining > 0 ? GREEN_BG : RED_BG);
+        badgeBg.setCornerRadius(dp(20));
+        badge.setBackground(badgeBg);
+        badge.setPadding(dp(9), dp(4), dp(9), dp(4));
+        top.addView(badge);
+
+        body.addView(top);
+        TextView meta = text("id " + id + "  ·  remaining " + remaining + " / " + total, 12, SLATE, false);
+        addWithTop(body, meta, dp(4));
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.addView(button("Claim 1", () -> claim(id)), weightParams());
-        actions.addView(button("Release 1", () -> release(id)), weightParams());
-        row.addView(actions);
-        return row;
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        actionParams.topMargin = dp(12);
+        body.addView(actions, actionParams);
+
+        MaterialButton claim = smallButton("Claim 1", ORANGE, WHITE);
+        LinearLayout.LayoutParams claimParams = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        claimParams.rightMargin = dp(8);
+        actions.addView(claim, claimParams);
+        claim.setOnClickListener(v -> claim(id));
+
+        MaterialButton release = smallButton("Release 1", SOFT, INK);
+        actions.addView(release, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        release.setOnClickListener(v -> release(id));
+
+        return card;
     }
 
     private void claim(int itemId) {
         if (token.isEmpty()) {
-            showAuth("Sign in first");
+            showAuth("Sign in first.");
             return;
         }
         JSONObject body = new JSONObject();
         try {
             body.put("quantity", 1);
         } catch (JSONException e) {
-            status("JSON error");
+            status("JSON error.");
             return;
         }
 
-        status("Claiming item " + itemId + "...");
+        status("Claiming...");
         executor.execute(() -> {
             try {
                 ApiClient.Response response = ApiClient.request(
@@ -420,10 +582,9 @@ public class MainActivity extends AppCompatActivity {
                 );
                 runOnUiThread(() -> {
                     if (response.ok()) {
-                        status("Claimed item " + itemId);
                         loadItems();
                     } else if (response.code == 409) {
-                        status("Conflict: someone else claimed the last unit");
+                        status("Conflict: someone else claimed the last unit.");
                         loadItems();
                     } else {
                         status("HTTP " + response.code + ": " + response.body);
@@ -437,18 +598,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void release(int itemId) {
         if (token.isEmpty()) {
-            showAuth("Sign in first");
+            showAuth("Sign in first.");
             return;
         }
         JSONObject body = new JSONObject();
         try {
             body.put("quantity", 1);
         } catch (JSONException e) {
-            status("JSON error");
+            status("JSON error.");
             return;
         }
 
-        status("Releasing item " + itemId + "...");
+        status("Releasing...");
         executor.execute(() -> {
             try {
                 ApiClient.Response response = ApiClient.request(
@@ -460,10 +621,9 @@ public class MainActivity extends AppCompatActivity {
                 );
                 runOnUiThread(() -> {
                     if (response.ok()) {
-                        status("Released item " + itemId);
                         loadItems();
                     } else if (response.code == 409) {
-                        status("You have no claim to release");
+                        status("You have no claim to release.");
                         loadItems();
                     } else {
                         status("HTTP " + response.code + ": " + response.body);
@@ -478,9 +638,14 @@ public class MainActivity extends AppCompatActivity {
     private void clearToken() {
         token = "";
         prefs.edit().remove("token").apply();
-        itemsContainer.removeAllViews();
-        passwordInput.setText("");
-        showAuth("Signed out");
+        if (itemsContainer != null) {
+            itemsContainer.removeAllViews();
+        }
+        if (passwordInput != null) {
+            passwordInput.setText("");
+        }
+        setAuthMode(false);
+        showAuth("Signed out.");
     }
 
     private int currentListId() {
@@ -507,53 +672,173 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private EditText input(String hint, int inputType) {
+    private MaterialCardView card() {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setCardBackgroundColor(WHITE);
+        card.setRadius(dp(18));
+        card.setCardElevation(dp(2));
+        card.setStrokeWidth(0);
+        return card;
+    }
+
+    private LinearLayout cardBody(MaterialCardView card) {
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(18), dp(18), dp(18), dp(18));
+        card.addView(body, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        return body;
+    }
+
+    private LinearLayout.LayoutParams cardParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.bottomMargin = dp(14);
+        return params;
+    }
+
+    private Field field(String hint, int inputType) {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+
+        TextView label = text(hint, 11, SLATE, true);
+        label.setPadding(dp(2), 0, 0, dp(5));
+        container.addView(label);
+
         EditText input = new EditText(this);
-        input.setHint(hint);
         input.setInputType(inputType);
-        return input;
+        input.setTextSize(16);
+        input.setSingleLine(true);
+        input.setTextColor(INK);
+        input.setHintTextColor(SLATE);
+        input.setPadding(dp(14), dp(12), dp(14), dp(12));
+        input.setMinHeight(dp(52));
+        input.setBackground(fieldBackground(false));
+        input.setOnFocusChangeListener((view, focused) ->
+                view.setBackground(fieldBackground(focused)));
+        container.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        return new Field(container, input);
     }
 
-    private TextView label(String text) {
-        TextView view = new TextView(this);
-        view.setText(text);
-        view.setTextSize(12);
-        view.setPadding(0, dp(10), 0, dp(2));
-        return view;
+    private GradientDrawable fieldBackground(boolean focused) {
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(WHITE);
+        background.setCornerRadius(dp(12));
+        background.setStroke(dp(focused ? 2 : 1), focused ? ORANGE : LINE);
+        return background;
     }
 
-    private Button button(String text, Runnable action) {
-        Button button = new Button(this);
-        button.setText(text);
-        button.setAllCaps(false);
-        button.setOnClickListener(view -> action.run());
+    private EditText addField(LinearLayout parent, String hint, int inputType) {
+        Field field = field(hint, inputType);
+        addFieldLayout(parent, field.container);
+        return field.input;
+    }
+
+    private void addFieldLayout(LinearLayout parent, View layout) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.topMargin = dp(12);
+        parent.addView(layout, params);
+    }
+
+    private MaterialButton primaryButton(String label) {
+        MaterialButton button = baseButton(label, ORANGE, WHITE);
+        button.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(52)
+        ));
         return button;
     }
 
-    private View divider() {
-        View view = new View(this);
-        view.setBackgroundColor(0xFFDDD0C8);
-        LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(1)
-                );
-        params.topMargin = dp(12);
-        params.bottomMargin = dp(12);
-        view.setLayoutParams(params);
+    private MaterialButton softButton(String label) {
+        MaterialButton button = baseButton(label, SOFT, INK);
+        button.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(48)
+        ));
+        return button;
+    }
+
+    private MaterialButton smallButton(String label, int background, int foreground) {
+        MaterialButton button = baseButton(label, background, foreground);
+        button.setTextSize(12);
+        button.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(44)
+        ));
+        return button;
+    }
+
+    private MaterialButton baseButton(String label, int background, int foreground) {
+        MaterialButton button = new MaterialButton(this);
+        button.setText(label);
+        button.setAllCaps(false);
+        button.setTextSize(15);
+        button.setTypeface(null, Typeface.BOLD);
+        button.setTextColor(foreground);
+        button.setBackgroundTintList(ColorStateList.valueOf(background));
+        button.setCornerRadius(dp(12));
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setMinHeight(0);
+        button.setMinimumHeight(0);
+        button.setPadding(dp(14), 0, dp(14), 0);
+        return button;
+    }
+
+    private TextView text(String value, int size, int color, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(value);
+        view.setTextSize(size);
+        view.setTextColor(color);
+        if (bold) {
+            view.setTypeface(null, Typeface.BOLD);
+        }
         return view;
     }
 
-    private LinearLayout.LayoutParams weightParams() {
-        return new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
+    private void addWithTop(LinearLayout parent, View child, int top) {
+        int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+        if (child.getLayoutParams() instanceof LinearLayout.LayoutParams) {
+            height = ((LinearLayout.LayoutParams) child.getLayoutParams()).height;
+        }
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                height
         );
+        params.topMargin = top;
+        parent.addView(child, params);
     }
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private int statusBarHeight() {
+        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        return id > 0
+                ? getResources().getDimensionPixelSize(id)
+                : dp(24);
+    }
+
+    private static class Field {
+        final LinearLayout container;
+        final EditText input;
+
+        Field(LinearLayout container, EditText input) {
+            this.container = container;
+            this.input = input;
+        }
     }
 
     @Override
